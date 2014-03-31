@@ -32,10 +32,10 @@ class ColdBubble {
         //ellipse(position.x, position.y, radius, radius);
         buf.beginDraw();
         buf.background(0,0,0,0);
-        SmartColor q = c.intensity(255);
+        SmartColor q = c.intensity(150);
         buf.ellipseMode(CORNERS);
-        buf.stroke(c.intensity(150).getR(),q.intensity(150).getG(),q.intensity(150).getB());
-        buf.fill(q.getR(),q.getG(),q.getB());
+        buf.stroke(q.getR(),q.getG(),q.getB());
+        buf.fill(c.getR(),c.getG(),c.getB());
         buf.ellipse(0, 0, radius, radius);
         buf.stroke(255,255,255, (position.y/height)*255);
         float py = radius/2;

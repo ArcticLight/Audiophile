@@ -45,8 +45,8 @@ ArrayList<ColdBubble> bubbles;
 float cbg = 255/2;
 float[] lastF;
 final int IMMEDIATE_SIZE = 8;
-final int FRAME_SIZE = 32;
-final int MAX_BUBBLES = 50;
+final int FRAME_SIZE = 16;
+final int MAX_BUBBLES = 25;
 
 void setup() {
     size(800,700);
@@ -222,11 +222,11 @@ void draw() {
         avg /= moodFrame.size();
     }
     
-    int mid = 300; //values (again) chosen by the highly scientific blah blah blah....
+    int mid = 400; //values (again) chosen by the highly scientific blah blah blah....
     ///              yeah, you get it. I messed with the code until it was pretty.
     ///              The measurements produced by this program have almost 0 scientific
     ///              value, only artistic value.
-    int top = 450;
+    int top = 600;
     float range = top-mid;
     int low = mid - (int)range;
     //the weight ratio along our red-blue axis. Used for weighting the colors together
@@ -258,10 +258,11 @@ void draw() {
     //of locating yellow values. Notice here that the color we do it is picked in somewhat
     //nifty fashion: We rotate approximately 20% along the blue/red axis from where the weight
     //currently is set for the background. This draws a contrasting color almost all the time.
-    SmartColor spectrograph = cold.weight(warm,((((int)(1-wt)*100)+20)%100)/100.);
-    SmartColor ispectrograph = cold.weight(warm,((((int)(wt)*100)+70)%100)/100.);
+    SmartColor spectrograph = cold.weight(warm,1-wt);
+    SmartColor ispectrograph = cold.weight(warm,((((int)((wt)*100)+80)%100)/100.));
     for(int i = 2; i < spec.length-2; i++) {
-        stroke(255);
+        //stroke(255);
+        spectrograph.intensity(400).rstroke();
         float ft = spec[i]*5;
         line(i,height/2-ft,i,height/2+ft);
         ft -= 2;
