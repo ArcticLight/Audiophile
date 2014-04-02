@@ -1,6 +1,6 @@
 class ColdBubble {
     PVector position,go;
-    PGraphics buf,mask;
+    PGraphics buf,mask,bmask;
     int radius;
     float rot, rotv;
     float lifespan, lived;
@@ -20,6 +20,16 @@ class ColdBubble {
         this.sr = (int)random(0,400);
         this.buf = createGraphics(radius+2,radius+2);
         this.mask = createGraphics(radius+2,radius+2);
+        this.bmask = createGraphics(radius+2,radius+2);
+        bmask.beginDraw();
+        bmask.background(0);
+        bmask.ellipseMode(CENTER);
+        bmask.noFill();
+        for(float z = 1; z >= 0; z -= .01) {
+            bmask.stroke((255-(lived/lifespan)*255)*(1-z));
+            bmask.ellipse(radius/2,radius/2,radius/2*z,radius/2*z);
+        }
+        bmask.endDraw();
     }
     
     void draw() {
@@ -53,11 +63,10 @@ class ColdBubble {
         PImage ubuf = createImage(buf.width, buf.height, RGB);
         ubuf.set(0,0,buf);
         mask.beginDraw();
-        mask.background(0);
-        mask.ellipseMode(CORNERS);
-        mask.stroke(255-(lived/lifespan)*255);
-        mask.fill(255-(lived/lifespan)*255);
-        mask.ellipse(0,0,radius,radius);
+        mask.set(0,0,bmask);
+        mask.noStroke();
+        mask.fill(0,0,0,lived/lifespan*255);
+        mask.rect(0,0,radius,radius);
         mask.endDraw();
         ubuf.mask(mask);
         image(ubuf,position.x,position.y);
