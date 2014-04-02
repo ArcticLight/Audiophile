@@ -25,7 +25,6 @@ SmartColor rgb(int r, int g, int b) {
 SmartColor[] warmColors = {
     rgb(133, 14, 4),
     rgb(254, 66, 15),
-    rgb(203, 0, 245),
     rgb(255,0,0)
 };
 
