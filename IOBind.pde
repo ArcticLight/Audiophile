@@ -35,7 +35,7 @@ class InputOutputBind implements AudioSignal, AudioListener
   {
      leftChannel[0] = samp[0];
          for(int i = 1; i < samp.length-1; i++) {
-             leftChannel[i] = samp[i]*4; //(samp[i-1]+samp[i]+samp[i+1])/3*4;
+             leftChannel[i] = samp[i]*2; //(samp[i-1]+samp[i]+samp[i+1])/3*4;
          }
      now = ++count;
   }

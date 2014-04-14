@@ -14,7 +14,7 @@ FFT fft;
 SmartColor warm = new SmartColor(255,0,0); //the warm color starts as pure red
 SmartColor cold = new SmartColor(0,0,255); //the cold color starts as pure blue
 SmartColor background;
-int invertA, invertB; //used for the color invert zone.
+BeatDetect beats;
 
 SmartColor rgb(int r, int g, int b) {
     return new SmartColor(r,g,b);
@@ -23,14 +23,17 @@ SmartColor rgb(int r, int g, int b) {
 //Special thanks to the XKCD color survey
 //for providing the really nice pleasing colors
 SmartColor[] warmColors = {
-    rgb(133, 14, 4),
     rgb(254, 66, 15),
+<<<<<<< HEAD
+    rgb(175, 47, 13),
+    rgb(169, 3, 8)
+=======
     rgb(255,0,0)
+>>>>>>> 23265a4a8414e6fb9133053bdfedeb282d35006e
 };
 
 SmartColor[] coldColors = {
-    rgb(21, 46, 255),
-    rgb(202, 255, 251),
+    rgb(177, 209, 252),
     rgb(62, 130, 252),
     rgb(61, 122, 253),
     rgb(115, 133, 149)
@@ -40,20 +43,22 @@ ArrayList<Float> immediatePower;
 ArrayList<Float> powerFrame;
 ArrayList<Float> immediateMood;
 ArrayList<Float> moodFrame;
-ArrayList<ColdBubble> bubbles;
+ArrayList<ComplexBubble> bigbubbles;
+ArrayList<SimpleBubble> regbubbles;
 float cbg = 255/2;
+float cwt = 0;
 float[] lastF;
+boolean kick,snare,hat;
 final int IMMEDIATE_SIZE = 8;
-final int FRAME_SIZE = 16;
-final int MAX_BUBBLES = 25;
+final int FRAME_SIZE = 8;
+final int MAX_CBUBBLES = 25;
+final int MAX_SBUBBLES = 150;
 
 void setup() {
     size(800,700);
-    invertA = 200;
-    invertB = 400;
     tm = new TweenManager();
     minim = new Minim(this);
-    int size = 1024*4; //size picked based on the highly scientific efforts of GUESS and CHECK.
+    int size = 1024*2; //size picked based on the highly scientific efforts of GUESS and CHECK.
     in = minim.getLineIn(Minim.MONO, size);
     iobuf = new InputOutputBind(size);
     in.addListener(iobuf);
@@ -66,27 +71,46 @@ void setup() {
     moodFrame = new ArrayList<Float>(FRAME_SIZE);
     powerFrame = new ArrayList<Float>(FRAME_SIZE);
     //and one drawing structure
-    bubbles = new ArrayList<ColdBubble>(MAX_BUBBLES);
+    bigbubbles = new ArrayList<ComplexBubble>(MAX_CBUBBLES);
+    regbubbles = new ArrayList<SimpleBubble>(MAX_SBUBBLES);
+    beats = new BeatDetect(size, 44100);
+    textAlign(LEFT, CENTER);
 }
 
 void draw() {
     tm.update(.003);
-    background(cbg);
     //grab the current sound buffer out of the left [mono] channel
     float[] left = iobuf.leftChannel;
+    beats.detect(left);
+    kick = beats.isKick();
+    snare = beats.isSnare();
+    hat = beats.isHat();
     //compute an FFT on that buffer
     fft.forward(left);
     stroke(255,0,0);
     //don't store spec bigger than we have screen space
     float[] spec = new float[min(width,fft.specSize())];
+    float[] wspec = new float[spec.length];
     float avg = 0; //avg: the average power of the whole FFT
     float max = 0; //max; the max power of the whole FFT
-    for(int i = 2; i < spec.length-2; i++) {
+    for(int i = 0; i < 3; i++) {
+        spec[i] = fft.getBand(i);
+        //wspec is a weighted version, which is more visually appealing because
+        //it filters the lower end of the spectrum. In addition to being more appealing,
+        //though, it also seems to be easier to take Yellow values from.
+        wspec[i] = (spec[i]*31)*(constrain((float)Math.sqrt(i/40.)/4, 0, .5));
+    }
+    for(int i = 3; i < spec.length-3; i++) {
         //pre-smoothing.
-        spec[i]= fft.getBand(i-1) + fft.getBand(i-2) + fft.getBand(i) + fft.getBand(i+1) + fft.getBand(i+2);
-        spec[i] /= 5; //take the average of five neighbors.
+        spec[i]= fft.getBand(i-1) + fft.getBand(i-2) + fft.getBand(i-3) + fft.getBand(i) + fft.getBand(i+1) + fft.getBand(i+2) + fft.getBand(i+3);
+        spec[i] /= 7; //take the average of five neighbors.
         avg += spec[i]; //track max, avg
         max = (max > spec[i]) ? max : spec[i];
+        wspec[i] = (spec[i]*31)*(constrain((float)Math.sqrt(i/90.)/4, 0, .5));
+    }
+    for(int i = spec.length-3; i < spec.length; i++) {
+        spec[i] = fft.getBand(i);
+        wspec[i] = (spec[i]*11)*(constrain((float)Math.sqrt(i/40.)/4, 0, .5));
     }
     
     avg /= spec.length;//divide the average by the counted values
@@ -179,7 +203,15 @@ void draw() {
         }
     }
     
-    float target = avg + avg/4*3;
+    /* Compute average, max of wspec */
+    avg = 0;
+    max = -1;
+    for(float f : wspec) {
+        if(f > max) max = f;
+        avg += f;
+    }
+    avg /= wspec.length; 
+    float target = avg + (max-avg)*0.15;
     //this array list is called yellow for historical reasons. They used to be values I was
     //drawing as actually yellow. They are local maximums (within 3 of their neighbors)
     //which are greater than the target value (which is currently average power + 3/4 average)
@@ -187,14 +219,27 @@ void draw() {
     //put a zero in it so it's not empty in case of accidents.
     yellows.add(0);
     //if the values are maximums of their neighbors and also greater than the target, collect their indices.
-    for(int i = 2; i < spec.length-2; i++) {
-        if(spec[i] > spec[i-1] && spec[i] > spec[i+1] && spec[i] > spec[i-2] && spec[i] > spec[i+2] && spec[i] > target) {
+    for(int i = 2; i < wspec.length-2; i++) {
+        if(wspec[i] > wspec[i-1] && wspec[i] > wspec[i+1] && wspec[i] > wspec[i-2] && wspec[i] > wspec[i+2] && wspec[i] > target) {
             yellows.add(i);
         }
     }
-    //we added the yellow colored FFT indexes in order; the last one is the max,
-    //so we don't need to recheck for the max.
-    int brightness = yellows.get(yellows.size()-1);
+    
+    int mid = 150; //values (again) chosen by the highly scientific blah blah blah....
+    ///              yeah, you get it. I messed with the code until it was pretty.
+    ///              The measurements produced by this program have almost 0 scientific
+    ///              value, only artistic value.
+    int top = 250;
+    float range = top-mid;
+    int low = mid - (int)range;
+    int brightness = 0;
+    //clip yellow values outside of the bounds;
+    //I found out that this prevents a lot of false blue
+    //AND allows us a better read on classical music.
+    for(int i = yellows.size() - 1; i >= 0; i--) {
+        brightness = yellows.get(i);
+        if(brightness <= top+50) break;
+    }
     
     //the mood frame, which has an immediate for collection and a frame for averages
     //is handled much the same as the power frame and immediate. Except here, we're looking
@@ -214,24 +259,32 @@ void draw() {
         moodFrame.add(avg);
     }
     avg = 0; //more average calculations.
+    if(immediateMood.size() > 0) {
+        for(float f : immediateMood) {
+            avg += f;
+        }
+        avg /= immediateMood.size();
+        avg /= 4;
+    }
     for(float f : moodFrame) {
         avg += f;
     }
     if(moodFrame.size() > 0) {
-        avg /= moodFrame.size();
+        avg /= moodFrame.size() + .4;
     }
     
-    int mid = 400; //values (again) chosen by the highly scientific blah blah blah....
-    ///              yeah, you get it. I messed with the code until it was pretty.
-    ///              The measurements produced by this program have almost 0 scientific
-    ///              value, only artistic value.
-    int top = 600;
-    float range = top-mid;
-    int low = mid - (int)range;
     //the weight ratio along our red-blue axis. Used for weighting the colors together
     //to get the correct one.
-    float wt = constrain((avg-low),0,range*2)/(range*2);
-    background = cold.weight(warm,wt).intensity(cbg);
+    float realwt = constrain((avg-low)/(range*2),0,1);
+    
+    //the current weight is actually glided though; using the past
+    //weight as a starting point and only moving *towards* the real weight
+    //pumped out of the averaging functions. This smooths out the visual
+    //transitions when there are really big sudden changes in the weight,
+    //keeping the transitions from looking sudden and jerky
+    cwt += (realwt-cwt)/16;
+    float wt = cwt;
+    background = getBackgroundFor(wt);
     SmartColor ibackground = warm.weight(cold,wt).intensity(cbg);
     
     //better, subtly gradiented background.
@@ -245,50 +298,51 @@ void draw() {
         line(0,i,width,i);
     }
     
-    invertA = 0;
-    invertB = 0;
-    for(int i = 0; i < height; i++) {
-        ibackground.weight(background,.9 + ((float)(i))/height*.9).rstroke();
-        line(invertA,i,invertB,i);
-    }
-    //background(bg.r,bg.g,bg.b);
-    
     //do the spec freq again, but instead actually draw to the screen instead
     //of locating yellow values. Notice here that the color we do it is picked in somewhat
     //nifty fashion: We rotate approximately 20% along the blue/red axis from where the weight
     //currently is set for the background. This draws a contrasting color almost all the time.
     SmartColor spectrograph = cold.weight(warm,1-wt);
     SmartColor ispectrograph = cold.weight(warm,((((int)((wt)*100)+80)%100)/100.));
-    for(int i = 2; i < spec.length-2; i++) {
+    for(int i = 0; i < spec.length; i++) {
         //stroke(255);
         spectrograph.intensity(400).rstroke();
-        float ft = spec[i]*5;
+        float ft = wspec[i]*2+2;
         line(i,height/2-ft,i,height/2+ft);
         ft -= 2;
+        ft = constrain(ft,0,height);
         
-        int intense = 255;
-        if(spec[i] > spec[i-1] && spec[i] > spec[i+1] && spec[i] > spec[i-2] && spec[i] > spec[i+2] && spec[i] > target) {
-            intense=200;
-        }
-        if(i > invertA && i < invertB) {
-            ispectrograph.intensity(intense).rstroke();
-        } else {
-            spectrograph.intensity(intense).rstroke();
-        }
+        int intense = constrain((int)abs(constrain((255/((float)Math.sqrt(dist(i, 0, int(wt*width), 0)/(width/50)))), 0,9001)-250)+150, 150, 600);
+        spectrograph.intensity(intense).rstroke();
         line(i,height/2-ft,i,height/2+ft);
     }
+    //stroke(255);
+    //line(wt*width,0,wt*width,height);
     
     //bubbles
-    if(bubbles.size() < MAX_BUBBLES) {
-        bubbles.add(new ColdBubble(random(0,width),height+45, random(150,300)));
+    if(bigbubbles.size() < MAX_CBUBBLES) {
+        bigbubbles.add(new ComplexBubble(random(0,width),height+45, random(200,400)));
+    } else if(regbubbles.size() < MAX_SBUBBLES) {
+        regbubbles.add(new SimpleBubble(random(0,width), height+45, random(200,400)));
     }
-    ArrayList<ColdBubble> dead = new ArrayList<ColdBubble>();
-    for(ColdBubble b : bubbles) {
+    
+    ArrayList dead = new ArrayList();
+    for(ComplexBubble b : bigbubbles) {
         b.draw();
         if(b.dead()) dead.add(b);
     }
-    //kill the dead ones.
-    for(ColdBubble b : dead) {
-        bubbles.remove(b);
+    for(SimpleBubble b : regbubbles) {
+        b.draw();
+        if(b.dead()) dead.add(b);
     }
+    
+    //kill the dead ones.
+    for(Object o : dead) {
+        if(o instanceof ComplexBubble) bigbubbles.remove(o);
+        if(o instanceof SimpleBubble) regbubbles.remove(o);
+    }
+}
+
+SmartColor getBackgroundFor(float wt) {
+    return cold.weight(warm,wt).intensity(cbg);
 }
