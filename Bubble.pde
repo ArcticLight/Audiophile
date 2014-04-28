@@ -28,12 +28,9 @@ class ComplexBubble extends Bubble {
         this.bmask = createGraphics(radius+2,radius+2);
         bmask.beginDraw();
         bmask.background(0);
-        bmask.ellipseMode(CENTER);
-        bmask.noFill();
-        for(float z = 1; z >= 0; z -= .01) {
-            bmask.stroke((255-(lived/lifespan)*255)*(1-z));
-            bmask.ellipse(radius/2,radius/2,radius/2*z,radius/2*z);
-        }
+        bmask.ellipseMode(CORNERS);
+        bmask.fill(255);
+        bmask.ellipse(0,0,radius,radius);
         bmask.endDraw();
     }
     

@@ -24,12 +24,8 @@ SmartColor rgb(int r, int g, int b) {
 //for providing the really nice pleasing colors
 SmartColor[] warmColors = {
     rgb(254, 66, 15),
-<<<<<<< HEAD
     rgb(175, 47, 13),
     rgb(169, 3, 8)
-=======
-    rgb(255,0,0)
->>>>>>> 23265a4a8414e6fb9133053bdfedeb282d35006e
 };
 
 SmartColor[] coldColors = {
@@ -51,8 +47,8 @@ float[] lastF;
 boolean kick,snare,hat;
 final int IMMEDIATE_SIZE = 8;
 final int FRAME_SIZE = 8;
-final int MAX_CBUBBLES = 25;
-final int MAX_SBUBBLES = 150;
+final int MAX_CBUBBLES = 15;
+final int MAX_SBUBBLES = 100;
 
 void setup() {
     size(800,700);
