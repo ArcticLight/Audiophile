@@ -7,4 +7,4 @@ This is as close to pure-Processing as I could get, without ditching the audio p
 
 If you don't know what that means, then you're probably still fine... just attach a microphone to your computer, open this in Processing, and play some music into the microphone!
 
-Licensed under the MIT license.
+Licensed under the MIT license. See the LICENSE file
